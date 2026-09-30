@@ -1,7 +1,7 @@
 param([switch]$InstallDocker)
 
 $ErrorActionPreference = "Stop"
-Set-Location $PSScriptRoot
+Set-Location (Split-Path -Parent $PSScriptRoot)
 
 function Invoke-Checked {
     param(
