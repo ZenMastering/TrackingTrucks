@@ -1,1 +1,9 @@
-
+{
+	"id": 1,
+	"username": "sample.trucker",
+	"password": "ExamplePassword123!",
+    "role": "owner",
+	"schedules": [
+        {}
+    ]
+}
