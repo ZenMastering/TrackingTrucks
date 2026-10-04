@@ -1,14 +1,17 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import IndexRoute from '../routes/index';
-import './styles.css';
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import IndexRoute from "../routes/index";
+import "./index.css";
 
-const root = document.getElementById('root');
-if (!root) throw new Error('Missing application root.');
+const root = document.getElementById("root");
+
+if (!root) {
+  throw new Error("Missing application root.");
+}
 
 createRoot(root).render(
   <StrictMode>
-    {window.location.pathname === '/' ? (
+    {window.location.pathname === "/" ? (
       <IndexRoute />
     ) : (
       <main className="home">
@@ -16,5 +19,5 @@ createRoot(root).render(
         <a href="/">Back to TrackingTrucks</a>
       </main>
     )}
-  </StrictMode>,
+  </StrictMode>
 );

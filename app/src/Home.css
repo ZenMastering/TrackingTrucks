@@ -1,0 +1,56 @@
+.home {
+  min-height: 100vh;
+  background: #ffffff;
+}
+
+/* Navigation bar */
+
+.navbar {
+  height: 60px;
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 24px;
+
+  background: #ffffff;
+  border-bottom: 2px solid #c1121f;
+}
+
+.navbar-brand {
+  color: #c1121f;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.navbar-links {
+  display: flex;
+  gap: 20px;
+}
+
+.navbar-links a {
+  color: #222222;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.navbar-links a:hover {
+  color: #c1121f;
+}
+
+/* Map */
+
+.map-container {
+  width: 90%;
+  max-width: 1400px;
+  height: 70vh;
+
+  margin: 30px auto;
+
+  border: 2px solid #c1121f;
+  border-radius: 10px;
+  overflow: hidden;
+}
