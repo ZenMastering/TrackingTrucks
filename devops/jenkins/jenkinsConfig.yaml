@@ -24,6 +24,8 @@ controller:
   # Use the chart's pinned default plugins.
   # Avoid selecting newer dependency versions automatically.
   installLatestPlugins: false
+  additionalPlugins:
+    - job-dsl:3732.v9a_c49a_61a_313
 
   JCasC:
     defaultConfig: true
