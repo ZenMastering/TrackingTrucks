@@ -1,7 +1,3 @@
-// Seeded by deployJenkins.sh.
-// DEPLOY_CODE releases main to production.
-// Environment hostnames are maintained in environments.yaml.
-
 properties([
     disableConcurrentBuilds(),
     buildDiscarder(logRotator(numToKeepStr: '15')),
@@ -10,6 +6,11 @@ properties([
             name: 'REPO_URL',
             defaultValue: 'git@github.com:ZenMastering/TrackingTrucks.git',
             description: 'Git repository SSH URL'
+        ),
+        string(
+            name: 'BRANCH',
+            defaultValue: 'main',
+            description: 'Branch to check out and deploy to production'
         ),
         string(
             name: 'GIT_CREDENTIALS_ID',
@@ -23,6 +24,7 @@ timeout(time: 30, unit: 'MINUTES') {
     podTemplate(
         cloud: 'kubernetes',
         namespace: 'production',
+        podRetention: onFailure(),
         workspaceVolume: persistentVolumeClaimWorkspaceVolume(
             claimName: 'trackingtrucks-releases',
             readOnly: false
@@ -38,6 +40,8 @@ spec:
     fsGroup: 1000
   containers:
     - name: jnlp
+      image: jenkins/inbound-agent:jdk21
+      imagePullPolicy: Always
       workingDir: /home/jenkins/agent
     - name: build
       image: node:24-bookworm
@@ -68,19 +72,21 @@ spec:
                     returnStdout: true
                 ).trim()
 
-                withEnv(['BRANCH=main']) {
-                    // Preserve each release separately on the existing PVC.
+                withEnv(['BRANCH=' + (params.BRANCH ?: 'main').trim()]) {
                     ws('/home/jenkins/agent/releases/' + env.RELEASE_ID) {
                         stage('Checkout repository') {
+                            sh('git check-ref-format "refs/heads/$BRANCH"')
+
                             def revision = checkout([
                                 $class: 'GitSCM',
                                 branches: [[
-                                    name: 'refs/remotes/origin/main'
+                                    name: 'refs/remotes/origin/' + env.BRANCH
                                 ]],
                                 userRemoteConfigs: [[
                                     url: params.REPO_URL,
                                     credentialsId: params.GIT_CREDENTIALS_ID,
-                                    refspec: '+refs/heads/main:refs/remotes/origin/main'
+                                    refspec: '+refs/heads/' + env.BRANCH +
+                                             ':refs/remotes/origin/' + env.BRANCH
                                 ]],
                                 extensions: [[
                                     $class: 'CloneOption',
@@ -97,8 +103,6 @@ spec:
                             )
                             def production = config?.environments?.production
 
-                            // The current deployment script targets production.
-                            // Fail if YAML disagrees with that target.
                             if (production?.namespace != 'production') {
                                 error(
                                     'environments.yaml must define ' +
@@ -107,6 +111,7 @@ spec:
                             }
 
                             def hostname = production?.hostname
+
                             if (!(hostname instanceof String)) {
                                 error('production.hostname must be a string.')
                             }
@@ -125,14 +130,19 @@ spec:
                             env.APP_HOST = hostname
 
                             currentBuild.description =
-                                'production: main @ ' +
+                                'production: ' + env.BRANCH + ' @ ' +
                                 env.DEPLOY_COMMIT.take(12)
 
+                            echo('Branch: ' + env.BRANCH)
                             echo('Commit: ' + env.DEPLOY_COMMIT)
                             echo('Application URL: https://' + env.APP_HOST)
                         }
 
-                        stage('Compile application') {
+                        stage('Clean workspace') {
+                            sh('bash devops/jenkins/scripts/clean-workspace.sh')
+                        }
+
+                        stage('Build code') {
                             sh('bash /opt/deploy-code/compile-application.sh')
                         }
 
