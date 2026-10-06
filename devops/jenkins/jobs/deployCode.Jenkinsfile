@@ -72,7 +72,7 @@ spec:
                     returnStdout: true
                 ).trim()
 
-                withEnv(['BRANCH=' + (params.BRANCH ?: 'main').trim()]) {
+                withEnv(['BRANCH=' + (params.BRANCH ?: 'main').trim(), 'REPO_URL=' + params.REPO_URL]) {
                     ws('/home/jenkins/agent/releases/' + env.RELEASE_ID) {
                         stage('Checkout repository') {
                             sh('git check-ref-format "refs/heads/$BRANCH"')
@@ -128,6 +128,7 @@ spec:
                             }
 
                             env.APP_HOST = hostname
+                            env.DEPLOY_NAMESPACE = production.namespace
 
                             currentBuild.description =
                                 'production: ' + env.BRANCH + ' @ ' +
@@ -139,7 +140,7 @@ spec:
                         }
 
                         stage('Clean workspace') {
-                            sh('bash devops/jenkins/scripts/clean-workspace.sh')
+                            sh('bash /opt/deploy-code/deploy-code.sh stop')
                         }
 
                         stage('Build code') {
@@ -147,7 +148,7 @@ spec:
                         }
 
                         stage('Cut release') {
-                            sh('bash /opt/deploy-code/deploy-code.sh')
+                            sh('bash /opt/deploy-code/deploy-code.sh release')
                             echo('Application URL: https://' + env.APP_HOST)
                         }
                     }

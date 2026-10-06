@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
-# Cut release: promote the already checked-out and compiled directory.
 set -euo pipefail
+
+operation="${1:-release}"
+case "$operation" in
+  stop|release) ;;
+  *) echo 'Usage: deploy-code.sh [stop|release]' >&2; exit 2 ;;
+esac
+
+: "${DEPLOY_NAMESPACE:?Pipeline must select a deployment namespace}"
+[[ "$DEPLOY_NAMESPACE" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]] || {
+  echo 'Invalid deployment namespace' >&2; exit 1;
+}
+export DEPLOY_NAMESPACE
 : "${DEPLOY_COMMIT:?}"
 : "${RELEASE_ID:?}"
 [[ "$DEPLOY_COMMIT" =~ ^[0-9a-f]{40,64}$ ]] || { echo 'Invalid commit' >&2; exit 1; }
@@ -8,9 +19,11 @@ set -euo pipefail
 [[ "$PWD" == "/home/jenkins/agent/releases/$RELEASE_ID" ]] || {
   echo 'Release must run from its persistent workspace.' >&2; exit 1;
 }
+if [[ "$operation" == release ]]; then
 [[ "$(cat .deploy-code-built)" == "$DEPLOY_COMMIT" ]] || {
   echo 'This commit has not compiled successfully.' >&2; exit 1;
 }
+fi
 
 case "$(uname -m)" in
   x86_64) arch=amd64 ;;
@@ -25,14 +38,68 @@ curl -fsSL --retry 3 "https://dl.k8s.io/release/$version/bin/linux/$arch/kubectl
 printf '%s  %s\n' "$(cat "$bin_dir/kubectl.sha256")" "$bin_dir/kubectl" | sha256sum --check
 chmod +x "$bin_dir/kubectl"
 export PATH="$bin_dir:$PATH"
+
+service_account=/var/run/secrets/kubernetes.io/serviceaccount
+[[ -r "$service_account/token" && -r "$service_account/ca.crt" ]] || {
+  echo 'Run this script in the Jenkins build pod with serviceAccountName: deploy-code.' >&2
+  exit 1
+}
+export KUBECONFIG="$bin_dir/kubeconfig"
+cat > "$KUBECONFIG" <<'YAML'
+apiVersion: v1
+kind: Config
+clusters:
+  - name: cluster
+    cluster:
+      server: https://kubernetes.default.svc
+      certificate-authority: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+users:
+  - name: deploy-code
+    user:
+      tokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+contexts:
+  - name: deploy-code
+    context:
+      cluster: cluster
+      user: deploy-code
+current-context: deploy-code
+YAML
+
+kube() {
+  kubectl --namespace="$DEPLOY_NAMESPACE" --request-timeout=15s "$@"
+}
+
+if [[ "$operation" == stop ]]; then
+  deployment="$(kube get deployment trackingtrucks --ignore-not-found -o name)"
+  if [[ -n "$deployment" ]]; then
+    echo "Stopping $DEPLOY_NAMESPACE/trackingtrucks before building..."
+    kube patch deployment trackingtrucks --type=merge -p '{"spec":{"replicas":0}}'
+  fi
+
+  deadline=$((SECONDS + 180))
+  while true; do
+    pods="$(kube get pods -l app=trackingtrucks -o name)"
+    [[ -n "$pods" ]] || break
+    if (( SECONDS >= deadline )); then
+      echo 'Timed out waiting for application pods to terminate.' >&2
+      printf '%s\n' "$pods" >&2
+      exit 1
+    fi
+    sleep 3
+  done
+
+  echo 'Application pods stopped. Workspace, storage and Service preserved.'
+  exit 0
+fi
+
 export APP_HOST="${APP_HOST:-}"
 
 # JSON safely quotes all user-supplied values.
-node <<'JS' | kubectl -n production apply -f -
+node <<'JS' | kube apply -f -
 const labels = {app: 'trackingtrucks'};
 const deployment = {
   apiVersion: 'apps/v1', kind: 'Deployment',
-  metadata: {name: 'trackingtrucks', namespace: 'production'},
+  metadata: {name: 'trackingtrucks', namespace: process.env.DEPLOY_NAMESPACE},
   spec: {
     replicas: 1,
     revisionHistoryLimit: 5,
@@ -75,12 +142,12 @@ const deployment = {
 };
 const service = {
   apiVersion: 'v1', kind: 'Service',
-  metadata: {name: 'trackingtrucks', namespace: 'production'},
+  metadata: {name: 'trackingtrucks', namespace: process.env.DEPLOY_NAMESPACE},
   spec: {type: 'ClusterIP', selector: labels, ports: [{name: 'http', port: 80, targetPort: 'http'}]}
 };
 process.stdout.write(JSON.stringify({apiVersion: 'v1', kind: 'List', items: [deployment, service]}));
 JS
 
-kubectl -n production rollout status deployment/trackingtrucks --timeout=10m
+kube rollout status deployment/trackingtrucks --timeout=10m
 echo "Released $BRANCH at $DEPLOY_COMMIT as $RELEASE_ID."
-echo 'Access: kubectl -n production port-forward svc/trackingtrucks 5173:80'
+echo "Access: https://$APP_HOST"

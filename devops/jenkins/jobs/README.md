@@ -1,62 +1,39 @@
 # DEPLOY_CODE
 
-Source: jobs/deployCode.Jenkinsfile. Jenkins display name: DEPLOY_CODE.
+Run bash devops/jenkins/deployJenkins.sh from the repository root to seed the job and refresh its mounted scripts.
 
-## Setup
+## Parameters and configuration
 
-1. In Jenkins, add an "SSH Username with private key" credential with ID
-   github-ssh (username git for GitHub). Register the public key with GitHub.
-   The key is used by Jenkins checkout; it is not placed in application pods.
-2. Configure Jenkins Git Host Key Verification for GitHub. The included Helm
-   values trust GitHub's published Ed25519 key.
-3. From the repository root, run:
-   bash devops/jenkins/deployJenkins.sh
+- REPO_URL: repository SSH URL.
+- BRANCH: branch to release, defaulting to main.
+- GIT_CREDENTIALS_ID: Jenkins SSH credential ID, defaulting to github-ssh.
 
-The installer seeds/updates the job, publishes both helper scripts, and provisions
-the production service accounts, permissions, and trackingtrucks-releases PVC.
-It does not trigger DEPLOY_CODE. The PVC uses the existing local-path StorageClass.
-
-## Build with Parameters
-
-- REPO_URL: defaults to git@github.com:ZenMastering/TrackingTrucks.git
-- BRANCH: defaults to main; accepts branches such as feature/my-change
-- GIT_CREDENTIALS_ID: defaults to github-ssh
-- APP_HOST: optional exact Vite hostname; leave empty for localhost/port-forward
-
-The parameters are seeded before the first run, not only after it.
+Store the private key in Jenkins Credentials and grant its public key repository access.
+The selected branch must contain devops/jenkins/environments.yaml.
+The pipeline reads production.namespace and production.hostname from that file.
+This job targets production; testing and staging entries are reserved for separate jobs.
+No APP_HOST build parameter is needed.
 
 ## Stages
 
-1. Checkout repository: the Jenkins Git plugin clones the selected branch with
-   the chosen Jenkins credential and records the exact commit.
-2. Compile application: a Node 24 Jenkins agent pod in production runs npm ci
-   and npm run build. No application tests run. A failed build stops here.
-3. Cut release: updates the trackingtrucks Deployment and Service in production
-   to mount that build's directory, then waits for readiness. This does not create
-   a Git tag or GitHub Release. The current pod stays until its replacement is ready.
+1. Checkout repository: clone the selected branch, validate production settings, and record the commit.
+2. Clean workspace: call the mounted deploy-code.sh stop operation. Set trackingtrucks replicas to zero and wait up to three minutes for its application pods to disappear. A missing Deployment is accepted for the first release.
+3. Build code: install dependencies with npm ci and run npm run build.
+4. Cut release: call the same mounted deploy-code.sh release operation. Validate the compiled commit, apply the Deployment with one replica, and wait for readiness.
 
-The application continues to run npm run dev on 0.0.0.0:5173 as requested.
-The compile stage creates dist and validates compilation; the dev server still
-serves the matching source. To serve only dist instead, change the runtime command
-in scripts/deploy-code.sh from dev to preview.
+The app is offline between cleanup and a successful release. Build failure leaves it stopped.
+Cleanup preserves the Service, PVC, release files, namespace and Jenkins agent.
+The deployment script explicitly authenticates to the in-cluster Kubernetes API using the build pod's deploy-code service account. No Rancher admin credentials are required.
 
 ## Storage and access
 
-Each build uses a unique releases/<release-id> directory on a shared 20Gi PVC.
-Source, dependencies, and compiled output remain after the Jenkins agent exits.
-Only that release directory is mounted in the application. Application pods do
-not clone the repo or get a GitHub credential; restarts reuse the same commit.
-No registry or Docker image build is required.
+Each build gets a separate releases/<release-id> directory on trackingtrucks-releases.
+The application mounts that directory and runs npm run dev on port 5173.
+The production trackingtrucks Service exposes port 80.
+Compilation validates dist; the runtime continues serving the selected source with Vite.
+The YAML hostname is passed to Vite's allowed-host environment variable.
+Existing Tailscale forwarding is configured separately and continues using the Service.
 
-ReadWriteOnce/local-path keeps the builder and application on the same storage
-node. This is intended for the current home K3s setup. Retained release directories
-consume disk; Jenkins build-log retention does not remove them. Keep directories
-needed by the live Deployment and rollback revisions when cleaning old releases.
-
-Access locally, or forward this port through VS Code:
-  kubectl -n production port-forward svc/trackingtrucks 5173:80
-
-Open http://localhost:5173. No new ingress or Tailscale route is created.
-
-Changes were checked for script syntax and job generation only. Jenkins deployment
-and application builds were not run as part of this edit.
+Release directories are retained on the PVC; Jenkins build-log retention does not remove them.
+Keep directories used by current or rollback releases.
+The local-path PVC places the build and application pods on the storage node.

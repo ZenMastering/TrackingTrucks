@@ -20,7 +20,6 @@ dsl = """pipelineJob('DEPLOY_CODE') {
     stringParam('REPO_URL', 'git@github.com:ZenMastering/TrackingTrucks.git', 'Git repository SSH URL')
     stringParam('BRANCH', 'main', 'Branch to check out and release')
     stringParam('GIT_CREDENTIALS_ID', 'github-ssh', 'Jenkins SSH Username with private key credential ID')
-    stringParam('APP_HOST', '', 'Optional exact hostname to allow in Vite, e.g. trucks.example.com.')
   }
   definition {
     cps {
