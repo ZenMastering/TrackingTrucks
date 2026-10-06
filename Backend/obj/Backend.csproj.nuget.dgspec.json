@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\samue\\OneDrive - East Tennessee State University\\Github\\TrackingTrucks\\Backend\\Backend.csproj": {}
+    "C:\\Users\\samue\\Documents\\TrackingTrucks\\Backend\\Backend.csproj": {}
   },
   "projects": {
-    "C:\\Users\\samue\\OneDrive - East Tennessee State University\\Github\\TrackingTrucks\\Backend\\Backend.csproj": {
+    "C:\\Users\\samue\\Documents\\TrackingTrucks\\Backend\\Backend.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\samue\\OneDrive - East Tennessee State University\\Github\\TrackingTrucks\\Backend\\Backend.csproj",
+        "projectUniqueName": "C:\\Users\\samue\\Documents\\TrackingTrucks\\Backend\\Backend.csproj",
         "projectName": "Backend",
-        "projectPath": "C:\\Users\\samue\\OneDrive - East Tennessee State University\\Github\\TrackingTrucks\\Backend\\Backend.csproj",
+        "projectPath": "C:\\Users\\samue\\Documents\\TrackingTrucks\\Backend\\Backend.csproj",
         "packagesPath": "C:\\Users\\samue\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\samue\\OneDrive - East Tennessee State University\\Github\\TrackingTrucks\\Backend\\obj\\",
+        "outputPath": "C:\\Users\\samue\\Documents\\TrackingTrucks\\Backend\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\samue\\AppData\\Roaming\\NuGet\\NuGet.Config",
@@ -46,6 +46,10 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "DotNetEnv": {
+              "target": "Package",
+              "version": "[3.2.0, )"
+            },
             "LibGit2Sharp": {
               "target": "Package",
               "version": "[0.32.0, )"

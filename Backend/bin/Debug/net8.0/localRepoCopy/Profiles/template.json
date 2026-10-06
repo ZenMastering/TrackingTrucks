@@ -1,0 +1,11 @@
+
+{
+  "id": "101",
+  "name": "Jane Smith",
+  "isEmployee": true,
+  "skills": ["Python", "JavaScript", "SQL"],
+  "address": {
+    "city": "Austin",
+    "zip": "78701"
+  }
+}
