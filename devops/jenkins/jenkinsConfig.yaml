@@ -1,0 +1,35 @@
+# Jenkins controller and storage settings.
+# Namespace and Helm release are fixed to "jenkins" in deployJenkins.sh.
+controller:
+  replicas: 1
+
+  admin:
+    username: admin
+    # Password is generated and stored in a Kubernetes Secret.
+
+  serviceType: ClusterIP
+  servicePort: 8080
+
+  ingress:
+    enabled: false
+
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+
+  # Use the chart's pinned default plugins.
+  # Avoid selecting newer dependency versions automatically.
+  installLatestPlugins: false
+
+  JCasC:
+    defaultConfig: true
+
+persistence:
+  enabled: true
+  storageClass: local-path
+  accessMode: ReadWriteOnce
+  size: 20Gi
