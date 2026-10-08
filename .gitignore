@@ -225,3 +225,5 @@ dist-electron/
 release/
 .env.*
 !.env.example
+Backend/obj/
+Backend/bin/
