@@ -15,7 +15,7 @@ namespace Backend
             string apiKey = "";
             DotNetEnv.Env.TraversePath().Load();
             apiKey = Environment.GetEnvironmentVariable("API_PRIVATE_KEY");
-            Database.clearFolder();
+            Database.clearFolder("localRepoCopy");
             Database.pullGitDatabase();
             Database.parseProfilesDatabase();
             Database.parseSchedulesDatabase();
@@ -27,7 +27,7 @@ namespace Backend
                 string profileName = Console.ReadLine();
                 Console.WriteLine("Please input profile json:");
                 string jsonInput = Console.ReadLine();
-                Database.writeProfilesDatabase(profileName, jsonInput);
+                Database.writeProfilesDatabase(profileName, jsonInput); 
             }
             if (input == 2)
             {
@@ -37,7 +37,8 @@ namespace Backend
                 string jsonInput = Console.ReadLine();
                 Database.writeSchedulesDatabase(scheduleName, jsonInput);
             }
-            Database.pushGitDatabase("backend full test", "octowalrus", apiKey);
+            Database.pushGitDatabase("Backend Automated Commit", "octowalrus", apiKey);
+            Database.clearFolder("..\\localRepoCopy");
         }
     }
 }
